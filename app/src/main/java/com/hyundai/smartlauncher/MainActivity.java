@@ -15,10 +15,11 @@ import java.util.*;
 
 public class MainActivity extends Activity {
 
-    private final int BG = Color.rgb(12, 2, 4);
+    private final int BG = Color.rgb(8, 10, 16);
     private final int WHITE = Color.WHITE;
-    private final int MUTED = Color.rgb(204, 188, 190);
-    private final int PINK = Color.rgb(255, 38, 94);
+    private final int MUTED = Color.rgb(185, 194, 208);
+    private final int PINK = Color.rgb(0, 235, 170);
+    private static final int REQUEST_PICK_APK = 4102;
 
     private LinearLayout root, appsRow;
     private final ArrayList<String> pinned = new ArrayList<>();
@@ -94,8 +95,8 @@ public class MainActivity extends Activity {
         GradientDrawable bg = new GradientDrawable(
             GradientDrawable.Orientation.TL_BR,
             new int[]{
-                Color.rgb(64, 0, 8),
-                Color.rgb(28, 0, 4),
+                Color.rgb(9, 38, 48),
+                Color.rgb(22, 17, 40),
                 BG,
                 Color.BLACK
             }
@@ -124,7 +125,7 @@ public class MainActivity extends Activity {
         top.addView(clockCol, new LinearLayout.LayoutParams(0, -2, 1));
 
         TextView greeting = text(
-            "HYUNDAI  •  BUENAS TARDES", 14, MUTED, true
+            "HYUNDAI  •  " + greetingForHour(), 14, MUTED, true
         );
         greeting.setLetterSpacing(.12f);
         clockCol.addView(greeting);
@@ -163,8 +164,7 @@ public class MainActivity extends Activity {
         top.addView(gapW(dp(10)));
 
         top.addView(
-            topButton("⚙  Ajustes",
-                () -> openSettings("android.settings.SETTINGS")),
+            topButton("⚙  Ajustes", this::showLauncherSettings),
             new LinearLayout.LayoutParams(dp(132), dp(46))
         );
 
@@ -424,6 +424,64 @@ public class MainActivity extends Activity {
             })
             .setNegativeButton("Cancelar", null)
             .show();
+    }
+
+    private String greetingForHour() {
+        Calendar c = Calendar.getInstance();
+        int hour = c.get(Calendar.HOUR_OF_DAY);
+        if (hour >= 5 && hour < 12) return "BUENOS DÍAS";
+        if (hour >= 12 && hour < 19) return "BUENAS TARDES";
+        return "BUENAS NOCHES";
+    }
+
+    private void showLauncherSettings() {
+        final String[] options = {
+            "Instalar APK desde USB o almacenamiento",
+            "Ajustes de Android",
+            "Configuración de Wi-Fi",
+            "Administrar aplicaciones instaladas",
+            "Información del launcher"
+        };
+        new AlertDialog.Builder(this)
+            .setTitle("Configuración Hyundai")
+            .setItems(options, (dialog, which) -> {
+                if (which == 0) pickApk();
+                else if (which == 1) openSettings("android.settings.SETTINGS");
+                else if (which == 2) openSettings("android.settings.WIFI_SETTINGS");
+                else if (which == 3) openSettings("android.settings.APPLICATION_SETTINGS");
+                else new AlertDialog.Builder(this)
+                    .setTitle("Hyundai Smart Launcher 2.0")
+                    .setMessage("Launcher independiente para Android 7.1.1. El launcher original del televisor no se modifica. La instalación de APK requiere confirmar en el instalador de Android.")
+                    .setPositiveButton("Aceptar", null).show();
+            })
+            .setNegativeButton("Cerrar", null)
+            .show();
+    }
+
+    private void pickApk() {
+        try {
+            Intent pick = new Intent(Intent.ACTION_GET_CONTENT);
+            pick.setType("application/vnd.android.package-archive");
+            pick.addCategory(Intent.CATEGORY_OPENABLE);
+            startActivityForResult(Intent.createChooser(pick, "Seleccionar archivo APK"), REQUEST_PICK_APK);
+        } catch (Exception e) {
+            showToast("No se pudo abrir el selector. Prueba con un administrador de archivos.");
+        }
+    }
+
+    @Override
+    protected void onActivityResult(int requestCode, int resultCode, Intent data) {
+        super.onActivityResult(requestCode, resultCode, data);
+        if (requestCode == REQUEST_PICK_APK && resultCode == RESULT_OK && data != null && data.getData() != null) {
+            try {
+                Intent install = new Intent(Intent.ACTION_VIEW);
+                install.setDataAndType(data.getData(), "application/vnd.android.package-archive");
+                install.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
+                startActivity(install);
+            } catch (Exception e) {
+                showToast("Android no pudo abrir el instalador para este archivo.");
+            }
+        }
     }
 
     private void showInputs() {
