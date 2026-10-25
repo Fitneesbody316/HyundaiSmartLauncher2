@@ -15,10 +15,11 @@ import java.util.*;
 
 public class MainActivity extends Activity {
 
-    private final int BG = Color.rgb(12, 2, 4);
+    private final int BG = Color.rgb(8, 10, 16);
     private final int WHITE = Color.WHITE;
-    private final int MUTED = Color.rgb(204, 188, 190);
-    private final int PINK = Color.rgb(255, 38, 94);
+    private final int MUTED = Color.rgb(185, 194, 208);
+    private final int PINK = Color.rgb(0, 235, 100);
+    private static final int REQUEST_PICK_APK = 4102;
 
     private LinearLayout root, appsRow;
     private final ArrayList<String> pinned = new ArrayList<>();
@@ -89,150 +90,209 @@ public class MainActivity extends Activity {
     private void buildHome() {
         root = new LinearLayout(this);
         root.setOrientation(LinearLayout.VERTICAL);
-        root.setPadding(dp(30), dp(20), dp(30), dp(12));
+        root.setPadding(dp(28), dp(14), dp(28), dp(10));
 
         GradientDrawable bg = new GradientDrawable(
             GradientDrawable.Orientation.TL_BR,
             new int[]{
-                Color.rgb(64, 0, 8),
-                Color.rgb(28, 0, 4),
-                BG,
+                Color.rgb(3, 14, 24),
+                Color.rgb(5, 31, 43),
+                Color.rgb(4, 10, 18),
                 Color.BLACK
             }
         );
-
         root.setBackground(bg);
-
-        // Permitir que los elementos hijos reciban el foco del control.
         root.setFocusable(false);
         root.setFocusableInTouchMode(false);
-        root.setDescendantFocusability(
-            ViewGroup.FOCUS_AFTER_DESCENDANTS
-        );
-
+        root.setDescendantFocusability(ViewGroup.FOCUS_AFTER_DESCENDANTS);
         setContentView(root);
 
+        // Header inspired by the approved reference: brand left, clock/status right.
         LinearLayout top = new LinearLayout(this);
         top.setGravity(Gravity.CENTER_VERTICAL);
         top.setOrientation(LinearLayout.HORIZONTAL);
+        root.addView(top, new LinearLayout.LayoutParams(-1, dp(78)));
 
-        root.addView(top, new LinearLayout.LayoutParams(-1, dp(86)));
+        LinearLayout brand = new LinearLayout(this);
+        brand.setOrientation(LinearLayout.VERTICAL);
+        brand.setGravity(Gravity.CENTER_VERTICAL);
+        top.addView(brand, new LinearLayout.LayoutParams(0, -1, 1.4f));
 
-        LinearLayout clockCol = new LinearLayout(this);
-        clockCol.setOrientation(LinearLayout.VERTICAL);
+        TextView logo = text("HYUNDAI", 31, WHITE, true);
+        logo.setLetterSpacing(.025f);
+        brand.addView(logo);
+        TextView subLogo = text("S M A R T   L A U N C H E R", 10, MUTED, true);
+        subLogo.setPadding(dp(3), 0, 0, 0);
+        brand.addView(subLogo);
 
-        top.addView(clockCol, new LinearLayout.LayoutParams(0, -2, 1));
-
-        TextView greeting = text(
-            "HYUNDAI  •  BUENAS TARDES", 14, MUTED, true
-        );
-        greeting.setLetterSpacing(.12f);
-        clockCol.addView(greeting);
+        LinearLayout status = new LinearLayout(this);
+        status.setOrientation(LinearLayout.VERTICAL);
+        status.setGravity(Gravity.CENTER_VERTICAL | Gravity.RIGHT);
+        top.addView(status, new LinearLayout.LayoutParams(0, -1, 1f));
 
         Date now = new Date();
-
+        TextView greeting = text("●  " + greetingForHour(), 11, PINK, true);
+        greeting.setGravity(Gravity.RIGHT | Gravity.CENTER_VERTICAL);
+        status.addView(greeting);
         TextView clock = text(
-            new SimpleDateFormat("h:mm", Locale.getDefault()).format(now)
-                + "  "
-                + new SimpleDateFormat("a", Locale.getDefault()).format(now),
-            38, WHITE, false
+            new SimpleDateFormat("h:mm a", Locale.getDefault()).format(now),
+            25, WHITE, true
         );
-        clockCol.addView(clock);
-
+        clock.setGravity(Gravity.RIGHT | Gravity.CENTER_VERTICAL);
+        status.addView(clock);
         TextView date = text(
-            new SimpleDateFormat(
-                "EEEE d 'de' MMMM", new Locale("es", "CO")
-            ).format(now).toUpperCase(new Locale("es", "CO")),
-            12, MUTED, true
+            new SimpleDateFormat("EEE, d MMM yyyy", new Locale("es", "CO"))
+                .format(now),
+            11, MUTED, false
         );
-        clockCol.addView(date);
+        date.setGravity(Gravity.RIGHT | Gravity.CENTER_VERTICAL);
+        status.addView(date);
 
-        top.addView(
-            topButton("▰  Entradas", () -> showInputs()),
-            new LinearLayout.LayoutParams(dp(145), dp(46))
-        );
+        top.addView(gapW(dp(18)));
+        top.addView(topButton("⚙  Ajustes", this::showLauncherSettings),
+            new LinearLayout.LayoutParams(dp(112), dp(46)));
 
-        top.addView(gapW(dp(10)));
+        root.addView(space(dp(9)));
 
-        top.addView(
-            topButton("◉  Red",
-                () -> openSettings("android.settings.WIFI_SETTINGS")),
-            new LinearLayout.LayoutParams(dp(120), dp(46))
-        );
+        // Large source tiles occupy the main visual row.
+        LinearLayout sources = new LinearLayout(this);
+        sources.setOrientation(LinearLayout.HORIZONTAL);
+        root.addView(sources, new LinearLayout.LayoutParams(-1, dp(228)));
 
-        top.addView(gapW(dp(10)));
+        String[][] choices = {
+            {"▣", "TV"},
+            {"▱", "HDMI"},
+            {"♧", "USB"},
+            {"▦", "Aplicaciones"},
+            {"◉", "AV"},
+            {"▷", "Reproductor"},
+            {"▱", "HDMI 1"},
+            {"▱", "HDMI 2"},
+            {"▱", "HDMI 3"}
+        };
 
-        top.addView(
-            topButton("⚙  Ajustes",
-                () -> openSettings("android.settings.SETTINGS")),
-            new LinearLayout.LayoutParams(dp(132), dp(46))
-        );
+        // Four prominent cards match the reference; extra inputs stay in the row's scroll.
+        HorizontalScrollView sourceScroll = new HorizontalScrollView(this);
+        sourceScroll.setHorizontalScrollBarEnabled(false);
+        sourceScroll.setClipToPadding(false);
+        sources.addView(sourceScroll, new LinearLayout.LayoutParams(-1, -1));
+        LinearLayout sourceStrip = new LinearLayout(this);
+        sourceStrip.setOrientation(LinearLayout.HORIZONTAL);
+        sourceScroll.addView(sourceStrip);
 
-        root.addView(space(dp(12)));
-        addSectionTitle("Aplicaciones");
+        String[][] mainChoices = {
+            {"▣", "TV"}, {"▱", "HDMI"}, {"♧", "USB"}, {"▦", "Aplicaciones"}
+        };
+        for (int i = 0; i < mainChoices.length; i++) {
+            final String label = mainChoices[i][1];
+            LinearLayout tile = sourceTile(mainChoices[i][0], label, i == 0);
+            LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(0, -1, 1f);
+            lp.setMargins(dp(5), dp(3), dp(5), dp(5));
+            sourceStrip.addView(tile, lp);
+            tile.setOnClickListener(v -> {
+                if (label.equals("Aplicaciones")) {
+                    focusFirstApp();
+                } else if (label.equals("HDMI")) {
+                    showInputs();
+                } else {
+                    runInput(label);
+                }
+            });
+        }
+
+        root.addView(space(dp(10)));
+
+        // Utility buttons with the color hierarchy from the reference.
+        LinearLayout toolsRow = new LinearLayout(this);
+        toolsRow.setOrientation(LinearLayout.HORIZONTAL);
+        root.addView(toolsRow, new LinearLayout.LayoutParams(-1, dp(62)));
+        toolsRow.addView(utilityButton("🧹  Limpiar caché", Color.rgb(86, 20, 200),
+            this::showCacheInfo), new LinearLayout.LayoutParams(0, -1, 1.25f));
+        toolsRow.addView(gapW(dp(9)));
+        toolsRow.addView(utilityButton("▦  Gestionar apps", Color.rgb(0, 83, 164),
+            () -> openSettings("android.settings.APPLICATION_SETTINGS")),
+            new LinearLayout.LayoutParams(0, -1, 1f));
+        toolsRow.addView(gapW(dp(9)));
+        toolsRow.addView(utilityButton("⚙  Configuración", Color.rgb(44, 54, 67),
+            () -> openSettings("android.settings.SETTINGS")),
+            new LinearLayout.LayoutParams(0, -1, 1f));
+        toolsRow.addView(gapW(dp(9)));
+        toolsRow.addView(utilityButton("◉  Red", Color.rgb(22, 32, 46),
+            () -> openSettings("android.settings.WIFI_SETTINGS")),
+            new LinearLayout.LayoutParams(0, -1, .8f));
+
+        root.addView(space(dp(10)));
+        addSectionTitle("Apps favoritas");
 
         HorizontalScrollView hsv = new HorizontalScrollView(this);
         hsv.setHorizontalScrollBarEnabled(false);
         hsv.setClipToPadding(false);
-
-        root.addView(hsv, new LinearLayout.LayoutParams(-1, dp(140)));
-
+        root.addView(hsv, new LinearLayout.LayoutParams(-1, dp(142)));
         appsRow = new LinearLayout(this);
         appsRow.setOrientation(LinearLayout.HORIZONTAL);
         appsRow.setFocusable(false);
         appsRow.setFocusableInTouchMode(false);
         hsv.addView(appsRow);
-
         refreshApps();
 
-        root.addView(space(dp(10)));
-        addSectionTitle("Entradas");
-
-        LinearLayout inputs = new LinearLayout(this);
-        inputs.setOrientation(LinearLayout.HORIZONTAL);
-
-        root.addView(inputs, new LinearLayout.LayoutParams(-1, dp(94)));
-
-        String[][] choices = {
-            {"▣", "TV"},
-            {"▱", "HDMI 1"},
-            {"▱", "HDMI 2"},
-            {"▱", "HDMI 3"},
-            {"◉", "AV"},
-            {"▷", "Reproductor"},
-            {"♧", "USB"}
-        };
-
-        for (String[] c : choices) {
-            TextView v = text(c[0] + "\n" + c[1], 14, WHITE, false);
-            v.setGravity(Gravity.CENTER);
-            v.setFocusable(true);
-            v.setClickable(true);
-            v.setBackground(cardBg(false));
-
-            LinearLayout.LayoutParams lp =
-                new LinearLayout.LayoutParams(0, -1, 1);
-
-            lp.setMargins(dp(3), dp(4), dp(3), dp(4));
-            inputs.addView(v, lp);
-
-            v.setOnClickListener(w -> runInput(c[1]));
-            focusStyle(v);
-        }
-
-        root.addView(space(dp(10)));
-        addSectionTitle("Accesos rápidos");
-
-        TextView hint = text(
-            "Mantén presionado OK sobre una aplicación para moverla, "
-                + "quitarla o agregar otra.",
-            13, MUTED, false
-        );
-
-        root.addView(hint);
-
-        // Seleccionar la primera aplicación después de medir la pantalla.
         root.post(() -> focusFirstApp());
+    }
+
+    private LinearLayout sourceTile(String symbol, String label, boolean selected) {
+        LinearLayout tile = new LinearLayout(this);
+        tile.setOrientation(LinearLayout.VERTICAL);
+        tile.setGravity(Gravity.CENTER);
+        tile.setFocusable(true);
+        tile.setClickable(true);
+        tile.setPadding(dp(6), dp(5), dp(6), dp(5));
+        tile.setBackground(sourceCardBg(selected));
+
+        TextView glyph = text(symbol, 58, WHITE, true);
+        glyph.setGravity(Gravity.CENTER);
+        glyph.setFocusable(false);
+        tile.addView(glyph, new LinearLayout.LayoutParams(-1, 0, 1f));
+
+        TextView name = text(label, 21, WHITE, true);
+        name.setGravity(Gravity.CENTER);
+        name.setFocusable(false);
+        tile.addView(name, new LinearLayout.LayoutParams(-1, dp(43)));
+
+        tile.setOnFocusChangeListener((v, focused) -> {
+            v.setBackground(sourceCardBg(focused || selected));
+            v.setScaleX(focused ? 1.025f : 1f);
+            v.setScaleY(focused ? 1.025f : 1f);
+        });
+        return tile;
+    }
+
+    private GradientDrawable sourceCardBg(boolean selected) {
+        GradientDrawable d = new GradientDrawable(
+            GradientDrawable.Orientation.TL_BR,
+            selected
+                ? new int[]{Color.rgb(9, 74, 82), Color.rgb(12, 29, 48)}
+                : new int[]{Color.argb(220, 11, 29, 49), Color.argb(235, 12, 21, 35)}
+        );
+        d.setCornerRadius(dp(20));
+        d.setStroke(dp(selected ? 3 : 1),
+            selected ? PINK : Color.argb(180, 67, 123, 164));
+        return d;
+    }
+
+    private TextView utilityButton(String label, int color, Runnable action) {
+        TextView v = text(label, 15, WHITE, true);
+        v.setGravity(Gravity.CENTER);
+        v.setFocusable(true);
+        v.setClickable(true);
+        v.setPadding(dp(8), 0, dp(8), 0);
+        v.setBackground(round(color, Color.argb(180, 100, 150, 190), dp(16)));
+        v.setOnClickListener(w -> action.run());
+        v.setOnFocusChangeListener((w, focused) -> {
+            w.setBackground(round(focused ? Color.rgb(0, 100, 120) : color,
+                focused ? PINK : Color.argb(180, 100, 150, 190), dp(16)));
+            w.setScaleX(focused ? 1.025f : 1f);
+            w.setScaleY(focused ? 1.025f : 1f);
+        });
+        return v;
     }
 
     private void focusFirstApp() {
@@ -279,7 +339,7 @@ public class MainActivity extends Activity {
 
                 appsRow.addView(
                     card,
-                    new LinearLayout.LayoutParams(dp(190), dp(112))
+                    new LinearLayout.LayoutParams(dp(128), dp(112))
                 );
 
                 appsRow.addView(gapW(dp(12)));
@@ -296,7 +356,7 @@ public class MainActivity extends Activity {
 
         appsRow.addView(
             add,
-            new LinearLayout.LayoutParams(dp(150), dp(112))
+            new LinearLayout.LayoutParams(dp(128), dp(112))
         );
 
         add.setOnClickListener(v -> showAppPicker());
@@ -334,7 +394,7 @@ public class MainActivity extends Activity {
 
         card.addView(
             icon,
-            new LinearLayout.LayoutParams(dp(52), dp(52))
+            new LinearLayout.LayoutParams(dp(70), dp(70))
         );
 
         TextView name = text(
@@ -424,6 +484,79 @@ public class MainActivity extends Activity {
             })
             .setNegativeButton("Cancelar", null)
             .show();
+    }
+
+    private String greetingForHour() {
+        Calendar c = Calendar.getInstance();
+        int hour = c.get(Calendar.HOUR_OF_DAY);
+        if (hour >= 5 && hour < 12) return "BUENOS DÍAS";
+        if (hour >= 12 && hour < 19) return "BUENAS TARDES";
+        return "BUENAS NOCHES";
+    }
+
+    private void showCacheInfo() {
+        new AlertDialog.Builder(this)
+            .setTitle("Limpiar caché de aplicaciones")
+            .setMessage("Android 7 no permite que un launcher normal borre automáticamente la caché privada de todas las aplicaciones. Puedes abrir el almacenamiento de Android y limpiar los datos temporales desde allí. No se borrarán los datos de las aplicaciones desde este botón.")
+            .setPositiveButton("Abrir almacenamiento", (d, w) -> {
+                try {
+                    startActivity(new Intent("android.settings.INTERNAL_STORAGE_SETTINGS"));
+                } catch (Exception e) {
+                    openSettings("android.settings.SETTINGS");
+                }
+            })
+            .setNegativeButton("Cancelar", null)
+            .show();
+    }
+
+    private void showLauncherSettings() {
+        final String[] options = {
+            "Instalar APK desde USB o almacenamiento",
+            "Ajustes de Android",
+            "Configuración de Wi-Fi",
+            "Administrar aplicaciones instaladas",
+            "Información del launcher"
+        };
+        new AlertDialog.Builder(this)
+            .setTitle("Configuración Hyundai")
+            .setItems(options, (dialog, which) -> {
+                if (which == 0) pickApk();
+                else if (which == 1) openSettings("android.settings.SETTINGS");
+                else if (which == 2) openSettings("android.settings.WIFI_SETTINGS");
+                else if (which == 3) openSettings("android.settings.APPLICATION_SETTINGS");
+                else new AlertDialog.Builder(this)
+                    .setTitle("Hyundai Smart Launcher 2.0")
+                    .setMessage("Launcher independiente para Android 7.1.1. El launcher original del televisor no se modifica. La instalación de APK requiere confirmar en el instalador de Android.")
+                    .setPositiveButton("Aceptar", null).show();
+            })
+            .setNegativeButton("Cerrar", null)
+            .show();
+    }
+
+    private void pickApk() {
+        try {
+            Intent pick = new Intent(Intent.ACTION_GET_CONTENT);
+            pick.setType("application/vnd.android.package-archive");
+            pick.addCategory(Intent.CATEGORY_OPENABLE);
+            startActivityForResult(Intent.createChooser(pick, "Seleccionar archivo APK"), REQUEST_PICK_APK);
+        } catch (Exception e) {
+            showToast("No se pudo abrir el selector. Prueba con un administrador de archivos.");
+        }
+    }
+
+    @Override
+    protected void onActivityResult(int requestCode, int resultCode, Intent data) {
+        super.onActivityResult(requestCode, resultCode, data);
+        if (requestCode == REQUEST_PICK_APK && resultCode == RESULT_OK && data != null && data.getData() != null) {
+            try {
+                Intent install = new Intent(Intent.ACTION_VIEW);
+                install.setDataAndType(data.getData(), "application/vnd.android.package-archive");
+                install.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
+                startActivity(install);
+            } catch (Exception e) {
+                showToast("Android no pudo abrir el instalador para este archivo.");
+            }
+        }
     }
 
     private void showInputs() {
