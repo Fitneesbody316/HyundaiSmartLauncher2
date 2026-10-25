@@ -18,7 +18,7 @@ public class MainActivity extends Activity {
     private final int BG = Color.rgb(8, 10, 16);
     private final int WHITE = Color.WHITE;
     private final int MUTED = Color.rgb(185, 194, 208);
-    private final int PINK = Color.rgb(0, 235, 170);
+    private final int PINK = Color.rgb(0, 235, 100);
     private static final int REQUEST_PICK_APK = 4102;
 
     private LinearLayout root, appsRow;
@@ -185,13 +185,17 @@ public class MainActivity extends Activity {
 
         refreshApps();
 
-        root.addView(space(dp(10)));
-        addSectionTitle("Entradas");
+        root.addView(space(dp(8)));
+        addSectionTitle("Entradas y dispositivos");
+
+        HorizontalScrollView inputScroll = new HorizontalScrollView(this);
+        inputScroll.setHorizontalScrollBarEnabled(false);
+        inputScroll.setClipToPadding(false);
+        root.addView(inputScroll, new LinearLayout.LayoutParams(-1, dp(210)));
 
         LinearLayout inputs = new LinearLayout(this);
         inputs.setOrientation(LinearLayout.HORIZONTAL);
-
-        root.addView(inputs, new LinearLayout.LayoutParams(-1, dp(94)));
+        inputScroll.addView(inputs);
 
         String[][] choices = {
             {"▣", "TV"},
@@ -204,31 +208,57 @@ public class MainActivity extends Activity {
         };
 
         for (String[] c : choices) {
-            TextView v = text(c[0] + "\n" + c[1], 14, WHITE, false);
-            v.setGravity(Gravity.CENTER);
-            v.setFocusable(true);
-            v.setClickable(true);
-            v.setBackground(cardBg(false));
+            LinearLayout tile = new LinearLayout(this);
+            tile.setOrientation(LinearLayout.VERTICAL);
+            tile.setGravity(Gravity.CENTER);
+            tile.setFocusable(true);
+            tile.setClickable(true);
+            tile.setBackground(cardBg(false));
+
+            TextView glyph = text(c[0], 54, WHITE, true);
+            glyph.setGravity(Gravity.CENTER);
+            glyph.setFocusable(false);
+            tile.addView(glyph, new LinearLayout.LayoutParams(-1, dp(112)));
+
+            TextView label = text(c[1], 20, WHITE, true);
+            label.setGravity(Gravity.CENTER);
+            label.setFocusable(false);
+            tile.addView(label, new LinearLayout.LayoutParams(-1, dp(48)));
 
             LinearLayout.LayoutParams lp =
-                new LinearLayout.LayoutParams(0, -1, 1);
+                new LinearLayout.LayoutParams(dp(190), dp(190));
+            lp.setMargins(dp(6), dp(5), dp(6), dp(5));
+            inputs.addView(tile, lp);
 
-            lp.setMargins(dp(3), dp(4), dp(3), dp(4));
-            inputs.addView(v, lp);
-
-            v.setOnClickListener(w -> runInput(c[1]));
-            focusStyle(v);
+            tile.setOnClickListener(w -> runInput(c[1]));
+            focusStyle(tile);
         }
 
-        root.addView(space(dp(10)));
-        addSectionTitle("Accesos rápidos");
+        root.addView(space(dp(8)));
+        LinearLayout toolsRow = new LinearLayout(this);
+        toolsRow.setOrientation(LinearLayout.HORIZONTAL);
+        root.addView(toolsRow, new LinearLayout.LayoutParams(-1, dp(68)));
 
-        TextView hint = text(
-            "Mantén presionado OK sobre una aplicación para moverla, "
-                + "quitarla o agregar otra.",
-            13, MUTED, false
+        toolsRow.addView(
+            topButton("✦  Limpiar caché", this::showCacheInfo),
+            new LinearLayout.LayoutParams(0, -1, 1.25f)
+        );
+        toolsRow.addView(gapW(dp(10)));
+        toolsRow.addView(
+            topButton("▦  Gestionar apps", () -> openSettings("android.settings.APPLICATION_SETTINGS")),
+            new LinearLayout.LayoutParams(0, -1, 1f)
+        );
+        toolsRow.addView(gapW(dp(10)));
+        toolsRow.addView(
+            topButton("⚙  Configuración", () -> openSettings("android.settings.SETTINGS")),
+            new LinearLayout.LayoutParams(0, -1, 1f)
         );
 
+        root.addView(space(dp(8)));
+        TextView hint = text(
+            "Mantén presionado OK sobre una aplicación para moverla, quitarla o agregar otra.",
+            12, MUTED, false
+        );
         root.addView(hint);
 
         // Seleccionar la primera aplicación después de medir la pantalla.
@@ -432,6 +462,21 @@ public class MainActivity extends Activity {
         if (hour >= 5 && hour < 12) return "BUENOS DÍAS";
         if (hour >= 12 && hour < 19) return "BUENAS TARDES";
         return "BUENAS NOCHES";
+    }
+
+    private void showCacheInfo() {
+        new AlertDialog.Builder(this)
+            .setTitle("Limpiar caché de aplicaciones")
+            .setMessage("Android 7 no permite que un launcher normal borre automáticamente la caché privada de todas las aplicaciones. Puedes abrir el almacenamiento de Android y limpiar los datos temporales desde allí. No se borrarán los datos de las aplicaciones desde este botón.")
+            .setPositiveButton("Abrir almacenamiento", (d, w) -> {
+                try {
+                    startActivity(new Intent("android.settings.INTERNAL_STORAGE_SETTINGS"));
+                } catch (Exception e) {
+                    openSettings("android.settings.SETTINGS");
+                }
+            })
+            .setNegativeButton("Cancelar", null)
+            .show();
     }
 
     private void showLauncherSettings() {
